@@ -1,9 +1,7 @@
 #!/usr/bin/env racket
 #lang racket/base
 
-(require racket/cmdline
-         racket/file
-         racket/match)
+(require racket/cmdline racket/file racket/list racket/match racket/string)
 
 (struct pdl-fn (name v))
 
@@ -32,6 +30,18 @@
 (define (whitespace? c)
   (or (char=? c #\space) (char=? c #\tab) (char=? c #\return) (char=? c #\newline)))
 
+(define (gen-glo t)
+  (string-join (for/list ((i t))
+    (if (pair? i)
+      (if (string=? (first i) "fn")
+        (string-append "struct pdl_box " (second i) "\u28"
+                       (let ((a (string-join (for/list ((j (third i)))
+                                  (string-append "struct pdl_box " j)) ",")))
+                         (if (string=? a "") "void" a))
+                       "\u29{}\n")
+        (nonsense! "Bad function"))
+      (nonsense! "Bad top-level expression"))) ""))
+
 (define (nonsense! s)
   (displayln (string-append "Nonsense! " s))
   (exit 0))
@@ -40,4 +50,4 @@
                          ((list v j) (read-list (string-append s "\x29") 0)))
               (if (= (- j 1) (string-length s)) v (nonsense! "Too many \x29s"))))
 
-(print ast)
+(display (gen-glo ast))
