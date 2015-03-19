@@ -3,8 +3,6 @@
 
 (require racket/cmdline racket/file racket/list racket/match racket/string)
 
-(struct pdl-fn (name v))
-
 (define (read-list s i)
   (if (= i (string-length s))
     (nonsense! "Too few \x29s")
@@ -31,23 +29,30 @@
   (or (char=? c #\space) (char=? c #\tab) (char=? c #\return) (char=? c #\newline)))
 
 (define (gen-glo t)
-  (string-join (for/list ((i t))
-    (if (pair? i)
-      (if (string=? (first i) "fn")
-        (string-append "struct pdl_box " (second i) "\u28"
-                       (let ((a (string-join (for/list ((j (third i)))
-                                  (string-append "struct pdl_box " j)) ",")))
-                         (if (string=? a "") "void" a))
-                       "\u29{}\n")
-        (nonsense! "Bad function"))
-      (nonsense! "Bad top-level expression"))) ""))
+  (string-append (file->string "pdl.h") (string-join (for/list ((i t))
+    (if (and (pair? i) (string=? (first i) "fn"))
+      (string-append "int32_t " (second i) "\u28"
+                     (let ((a (string-join (for/list ((j (third i)))
+                                (string-append "int32_t " j)) ",")))
+                       (if (string=? a "") "void" a))
+                     "\u29{return " (gen (fourth i)) ";}\n")
+      (nonsense! "Bad top-level expression"))) "")))
+
+(define (gen t)
+  (cond ((pair? t) (if (string=? (first t) "?")
+                     (string-append "\u28" (gen (second t)) "?" (gen (third t)) ":" (gen (fourth t)) "\u29")
+                     (string-append (car t) "\u28" (string-join (for/list ((i (cdr t))) (gen i)) ",") "\u29")))
+        ((string? t) t)))
 
 (define (nonsense! s)
   (displayln (string-append "Nonsense! " s))
   (exit 0))
 
-(define ast (match-let* ((s (file->string (car (command-line #:args args args))))
+(define cmd (command-line #:args args args))
+(define ast (match-let* ((s (file->string (car cmd)))
                          ((list v j) (read-list (string-append s "\x29") 0)))
               (if (= (- j 1) (string-length s)) v (nonsense! "Too many \x29s"))))
 
-(display (gen-glo ast))
+(let ((f (string-append (car cmd) ".c")))
+  (cond ((file-exists? f) (delete-file f)))
+  (display-to-file (gen-glo ast) f))
