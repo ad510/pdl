@@ -25,8 +25,7 @@
         (match-let (((list v j) (read-sym s (+ i 1))))
           (list (string-append (string c) v) j))))))
 
-(define (whitespace? c)
-  (or (char=? c #\space) (char=? c #\tab) (char=? c #\return) (char=? c #\newline)))
+(define (whitespace? c) (or (char=? c #\space) (char=? c #\tab) (char=? c #\return) (char=? c #\newline)))
 
 (define (gen-glo t)
   (string-append (file->string "pdl.h") (string-join (for/list ((i t))
@@ -41,8 +40,19 @@
 (define (gen t)
   (cond ((pair? t) (if (string=? (first t) "?")
                      (string-append "\u28" (gen (second t)) "?" (gen (third t)) ":" (gen (fourth t)) "\u29")
-                     (string-append (car t) "\u28" (string-join (for/list ((i (cdr t))) (gen i)) ",") "\u29")))
+                     (string-append (car t) "\u28" (string-join (map gen (cdr t)) ",") "\u29")))
         ((string? t) t)))
+
+(define uniq-cnt -1)
+
+(define (uniq)
+  (set! uniq-cnt (+ uniq-cnt 1))
+  (string-append "_u_" (list->string (uniq-gen uniq-cnt))))
+
+(define (uniq-gen i)
+  (cons (integer->char (let ((r (remainder i 63)))
+          (+ r (cond ((< r 10) 48) ((< r 36) 55) ((< r 62) 61) (else 33)))))
+        (if (< i 63) '() (uniq-gen (- (quotient i 63) 1)))))
 
 (define (nonsense! s)
   (displayln (string-append "Nonsense! " s))
