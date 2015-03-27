@@ -34,14 +34,19 @@
                      (let ((a (string-join (for/list ((j (third i)))
                                 (string-append "int32_t " j)) ",")))
                        (if (string=? a "") "void" a))
-                     "\u29{return " (gen (fourth i)) ";}\n")
+                     (let* ((k (uniq)) (a (gen k (fourth i))))
+                       (string-append "\u29{int32_t " k ";" a "return " k ";}\n")))
       (nonsense! "Bad top-level expression"))) "")))
 
-(define (gen t)
+(define (gen k t)
   (cond ((pair? t) (if (string=? (first t) "?")
-                     (string-append "\u28" (gen (second t)) "?" (gen (third t)) ":" (gen (fourth t)) "\u29")
-                     (string-append (car t) "\u28" (string-join (map gen (cdr t)) ",") "\u29")))
-        ((string? t) t)))
+                     (let ((a (uniq)))
+                       (string-append "{int32_t " a ";" (gen a (second t)) "if(" a ")"
+                                      (gen k (third t)) "else " (gen k (fourth t)) "}"))
+                     (let ((a (for/list ((i (cdr t))) (let ((u (uniq))) (cons u (gen u i))))))
+                       (string-append "{" (string-join (for/list ((i a)) (string-append "int32_t " (car i) ";" (cdr i))) "")
+                                      k "=" (car t) "(" (string-join (for/list ((i a)) (car i)) ",") ");}"))))
+        ((string? t) (string-append k "=" t ";"))))
 
 (define uniq-cnt -1)
 
