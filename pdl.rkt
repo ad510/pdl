@@ -30,23 +30,25 @@
 (define (gen-glo t)
   (string-append (file->string "pdl.h") (string-join (for/list ((i t))
     (if (and (pair? i) (string=? (first i) "fn"))
-      (string-append "int32_t " (second i) "\u28"
+      (string-append "pdl_t " (second i) "\u28"
                      (let ((a (string-join (for/list ((j (third i)))
-                                (string-append "int32_t " j)) ",")))
+                                (string-append "pdl_t " j)) ",")))
                        (if (string=? a "") "void" a))
                      (let* ((k (uniq)) (a (gen k (fourth i))))
-                       (string-append "\u29{int32_t " k ";" a "return " k ";}\n")))
+                       (string-append "\u29{pdl_t " k ";" a "return " k ";}\n")))
       (nonsense! "Bad top-level expression"))) "")))
 
 (define (gen k t)
   (cond ((pair? t) (if (string=? (first t) "?")
                      (let ((a (uniq)))
-                       (string-append "{int32_t " a ";" (gen a (second t)) "if(" a ")"
+                       (string-append "{pdl_t " a ";" (gen a (second t)) "if(pdl_if(" a "))"
                                       (gen k (third t)) "else " (gen k (fourth t)) "}"))
                      (let ((a (for/list ((i (cdr t))) (let ((u (uniq))) (cons u (gen u i))))))
-                       (string-append "{" (string-join (for/list ((i a)) (string-append "int32_t " (car i) ";" (cdr i))) "")
+                       (string-append "{" (string-join (for/list ((i a)) (string-append "pdl_t " (car i) ";" (cdr i))) "")
                                       k "=" (car t) "(" (string-join (for/list ((i a)) (car i)) ",") ");}"))))
-        ((string? t) (string-append k "=" t ";"))))
+        ((string? t) (if (char-alphabetic? (string-ref t 0))
+                       (string-append k "=" t ";")
+                       (string-append "{" k ".t=pdl_i4;" k ".i4=" t ";}")))))
 
 (define uniq-cnt -1)
 
