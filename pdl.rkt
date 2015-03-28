@@ -1,20 +1,24 @@
 #!/usr/bin/env racket
 #lang racket/base
 
-(require racket/cmdline racket/file racket/list racket/match racket/string)
+(require racket/cmdline racket/file racket/list racket/string)
+
+; use custom destructuring macro b/c importing racket/match slows startup time
+(define-syntax-rule (mlet2 k1 k2 v b ...)
+  (let ((t v)) (let ((k1 (first t)) (k2 (second t))) b ...)))
 
 (define (read-list s i)
   (if (= i (string-length s))
     (nonsense! "Too few \x29s")
     (let ((c (string-ref s i)))
       (cond ((whitespace? c) (read-list s (+ i 1)))
-            ((char=? c #\u28) (match-let* (((list v j) (read-list s (+ i 1)))
-                                           ((list w k) (read-list s j)))
-                                (list (cons v w) k)))
+            ((char=? c #\u28) (mlet2 v j (read-list s (+ i 1))
+                              (mlet2 w k (read-list s j)
+                                (list (cons v w) k))))
             ((char=? c #\u29) (list '() (+ i 1)))
-            (else (match-let* (((list v j) (read-sym s i))
-                               ((list w k) (read-list s j)))
-                    (list (cons v w) k)))))))
+            (else (mlet2 v j (read-sym s i)
+                  (mlet2 w k (read-list s j)
+                    (list (cons v w) k))))))))
 
 (define (read-sym s i)
   (if (= i (string-length s))
@@ -22,7 +26,7 @@
     (let ((c (string-ref s i)))
       (if (or (whitespace? c) (char=? c #\u28) (char=? c #\u29))
         (list "" i)
-        (match-let (((list v j) (read-sym s (+ i 1))))
+        (mlet2 v j (read-sym s (+ i 1))
           (list (string-append (string c) v) j))))))
 
 (define (whitespace? c) (or (char=? c #\space) (char=? c #\tab) (char=? c #\return) (char=? c #\newline)))
@@ -66,9 +70,9 @@
   (exit 0))
 
 (define cmd (command-line #:args args args))
-(define ast (match-let* ((s (file->string (car cmd)))
-                         ((list v j) (read-list (string-append s "\x29") 0)))
-              (if (= (- j 1) (string-length s)) v (nonsense! "Too many \x29s"))))
+(define ast (let ((s (file->string (car cmd))))
+            (mlet2 v j (read-list (string-append s "\x29") 0)
+              (if (= (- j 1) (string-length s)) v (nonsense! "Too many \x29s")))))
 
 (let ((f (string-append (car cmd) ".c")))
   (cond ((file-exists? f) (delete-file f)))
