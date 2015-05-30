@@ -1,7 +1,7 @@
 #!/usr/bin/env racket
 #lang racket/base
 
-(require racket/cmdline racket/file racket/list racket/string)
+(require racket/cmdline racket/dict racket/file racket/list racket/string)
 
 ; use custom destructuring macro b/c importing racket/match slows startup time
 (define-syntax-rule (mlet2 k1 k2 v b ...)
@@ -33,24 +33,25 @@
 
 (define (gen-glo t)
   (string-append (file->string "pdl.h") (string-join (for/list ((i t))
-    (if (and (pair? i) (string=? (first i) "fn"))
-      (string-append (fourth i) " " (second i) "\u28"
-                     (let ((a (string-join (for/list ((j (third i)))
-                                (string-append (second j) " " (first j))) ",")))
-                       (if (string=? a "") "void" a))
-                     (let* ((k (uniq)) (a (gen k (fifth i))))
-                       (string-append "\u29{i4 " k ";" a "return " k ";}\n")))
-      (nonsense! "Bad top-level expression"))) "")))
+    (cond ((and (pair? i) (string=? (first i) "fn"))
+            (string-append (fourth i) " " (second i) "\u28"
+                           (let ((a (string-join (for/list ((j (third i)))
+                                      (string-append (second j) " " (first j))) ",")))
+                             (if (string=? a "") "void" a))
+                           (let* ((k (uniq)) (a (gen k (fifth i) (first (dict-ref fns (second i))))))
+                             (string-append "\u29{" (second a) " " k ";" (first a) "return " k ";}\n"))))
+          ((and (pair? i) (string=? (first i) "c_fn")) "")
+          (else (nonsense! "Bad top-level expression")))) "")))
 
-(define (gen k t)
+(define (gen k t e)
   (cond ((pair? t) (if (string=? (first t) "?")
-                     (let ((a (uniq)))
-                       (string-append "{i4 " a ";" (gen a (second t)) "if(" a ")"
-                                      (gen k (third t)) "else " (gen k (fourth t)) "}"))
-                     (let ((a (for/list ((i (cdr t))) (let ((u (uniq))) (cons u (gen u i))))))
-                       (string-append "{" (string-join (for/list ((i a)) (string-append "i4 " (car i) ";" (cdr i))) "")
-                                      k "=" (car t) "(" (string-join (for/list ((i a)) (car i)) ",") ");}"))))
-        ((string? t) (string-append k "=" t ";"))))
+                     (let* ((a (uniq)) (b (gen a (second t) e)) (c (gen k (third t) e)) (d (gen k (fourth t) e)))
+                       (list (string-append "{" (second b) " " a ";" (first b) "if(" a ")" (first c) "else " (first d) "}")
+                             (if (string=? (second c) (second d)) (second c) (nonsense! "Then types don't match"))))
+                     (let ((a (for/list ((i (cdr t))) (let ((u (uniq))) (cons u (gen u i e))))))
+                       (list (string-append "{" (string-join (for/list ((i a)) (string-append (third i) " " (first i) ";" (second i))) "")
+                                            k "=" (car t) "(" (string-join (for/list ((i a)) (first i)) ",") ");}") (second (dict-ref fns (car t)))))))
+        ((string? t) (list (string-append k "=" t ";") (if (char-alphabetic? (string-ref t 0)) (dict-ref e t) "i4")))))
 
 (define uniq-cnt -1)
 
@@ -71,6 +72,8 @@
 (define ast (let ((s (file->string (car cmd))))
             (mlet2 v j (read-list (string-append s "\x29") 0)
               (if (= (- j 1) (string-length s)) v (nonsense! "Too many \x29s")))))
+(define fns (for/list ((i (filter (lambda (i) (and (pair? i) (or (string=? (first i) "fn") (string=? (first i) "c_fn")))) ast)))
+  (list* (second i) (for/list ((j (third i))) (cons (first j) (second j))) (list-tail i 3))))
 
 (let ((f (string-append (car cmd) ".c")))
   (cond ((file-exists? f) (delete-file f)))
