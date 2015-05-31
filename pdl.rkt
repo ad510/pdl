@@ -25,6 +25,8 @@
 (define-syntax-rule (mlet2 k1 k2 v b ...)
   (let ((t v)) (let ((k1 (:^ t)) (k2 (:1 t))) b ...)))
 
+(struct F (e t v))
+
 (def (nonsense! s)
   (displayln (str:: "Nonsense! " s))
   (exit 0))
@@ -58,7 +60,7 @@
                         (: (:* v w) k))))))))
     (if (= j (string-length s)) v (nonsense! "Too many \x29s")))))
 
-(def fns (map (@(i) (:* (:1 i) (map (@(j) (:* (:^ j) (:1 j))) (:2 i)) (list-tail i 3)))
+(def fns (map (@(i) (:* (:1 i) (F (map (@(j) (:* (:^ j) (:1 j))) (:2 i)) (:3 i) (list-tail i 4))))
          (filter (@(i) (and (pair? i) (or (string=? (:^ i) "fn") (string=? (:^ i) "c_fn")))) ast)))
 
 (def fout (str:: (:^ cmd) ".c"))
@@ -80,14 +82,14 @@
                    (=: a (string-join (map (@(j) (str:: (:1 j) " " (:^ j))) (:2 i)) ",")
                      (if (string=? a "") "void" a))
                    (=: k (uniq) (=: a
-                     (let gen ((k k) (t (:4 i)) (e (:^ (dict-ref fns (:1 i)))))
+                     (let gen ((k k) (t (:4 i)) (e (F-e (dict-ref fns (:1 i)))))
                        (cond ((pair? t) (if (string=? (:^ t) "?")
                                           (let* ((a (uniq)) (b (gen a (:1 t) e)) (c (gen k (:2 t) e)) (d (gen k (:3 t) e)))
                                             (: (str:: "{" (:1 b) " " a ";" (:^ b) "if(" a ")" (:^ c) "else " (:^ d) "}")
                                                (if (string=? (:1 c) (:1 d)) (:1 c) (nonsense! "Then types don't match"))))
                                           (=: a (map (@(i) (=: u (uniq) (:* u (gen u i e)))) (:> t))
                                             (: (str:: "{" (string-join (map (@(i) (str:: (:2 i) " " (:^ i) ";" (:1 i))) a) "")
-                                                      k "=" (:^ t) "(" (string-join (map (@(i) (:^ i)) a) ",") ");}") (:1 (dict-ref fns (:^ t)))))))
+                                                      k "=" (:^ t) "(" (string-join (map (@(i) (:^ i)) a) ",") ");}") (F-t (dict-ref fns (:^ t)))))))
                              ((string? t) (: (str:: k "=" t ";") (if (char-alphabetic? (string-ref t 0)) (dict-ref e t) "i4")))))
                      (str:: "\u29{" (:1 a) " " k ";" (:^ a) "return " k ";}\n")))))
           ((and (pair? i) (string=? (:^ i) "c_fn")) "")
