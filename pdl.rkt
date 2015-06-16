@@ -25,11 +25,11 @@
 (define-syntax-rule (mlet2 k1 k2 v b ...)
   (let ((t v)) (let ((k1 (:^ t)) (k2 (:1 t))) b ...)))
 
-(struct F (e t v))
-(struct C (k v t))
+(struct F (e t v)) ; fn (params ret-type body)
+(struct C (k v t)) ; c-code (key value type)
 
-(def (nonsense! s)
-  (displayln (str:: "Nonsense! " s))
+(def (nonsense! . s)
+  (displayln (string-join (:* "Nonsense! " s) ""))
   (exit 0))
 
 (def (whitespace? c) (or (char=? c #\space) (char=? c #\tab) (char=? c #\return) (char=? c #\newline)))
@@ -64,6 +64,8 @@
 (def fns (map (@(i) (:* (:1 i) (F (map (@(j) (:* (:^ j) (:1 j))) (:2 i)) (:3 i) (list-tail i 4))))
          (filter (@(i) (and (pair? i) (or (string=? (:^ i) "fn") (string=? (:^ i) "c_fn")))) ast)))
 
+(def (lookup e k) (or (dict-ref e k #f) (nonsense! "\"" k "\" not defined")))
+
 (def fout (str:: (:^ cmd) ".c"))
 (when (file-exists? fout) (delete-file fout))
 
@@ -81,15 +83,22 @@
           (str:: (:3 i) " " (:1 i) "\u28"
                  (=: a (string-join (map (@(j) (str:: (:1 j) " " (:^ j))) (:2 i)) ",")
                    (if (string=? a "") "void" a))
-                 (=: a (let gen ((k (uniq)) (t (:4 i)) (e (F-e (dict-ref fns (:1 i)))))
+                 (=: a (let gen ((k (uniq)) (t (:4 i)) (e (F-e (lookup fns (:1 i)))))
                          (cond ((pair? t) (if (string=? (:^ t) "?")
                                             (let* ((a (uniq)) (b (gen a (:1 t) e)) (c (gen k (:2 t) e)) (d (gen k (:3 t) e)))
                                               (C k (str:: "{" (C-t b) " " a ";" (C-v b) "if(" a ")" (C-v c) "else " (C-v d) "}")
-                                                 (if (string=? (C-t c) (C-t d)) (C-t c) (nonsense! "Then types don't match"))))
-                                            (=: a (map (@(i) (gen (uniq) i e)) (:> t))
+                                                 (if (string=? (C-t c) (C-t d)) (C-t c)
+                                                     (nonsense! "Then types " (C-t c) " and " (C-t d) " don't match"))))
+                                            (=: a (map (@(i) (gen (uniq) i e)) (:> t)) (=: b (lookup fns (:^ t))
+                                              (unless (= (length a) (length (F-e b)))
+                                                (nonsense! (:^ t) " takes " (number->string (length (F-e b))) " arguments but you gave it " (number->string (length a))))
+                                              (map (@(i j) (unless (equal? (C-t i) (:> j))
+                                                             (nonsense! (:^ t) " parameter " (:^ j) " must be a " (:> j) " but you gave it a " (C-t i))))
+                                                   a (F-e b))
                                               (C k (str:: "{" (string-join (map (@(i) (str:: (C-t i) " " (C-k i) ";" (C-v i))) a) "")
-                                                          k "=" (:^ t) "(" (string-join (map (@(i) (C-k i)) a) ",") ");}") (F-t (dict-ref fns (:^ t)))))))
-                               ((string? t) (C k (str:: k "=" t ";") (if (char-alphabetic? (string-ref t 0)) (dict-ref e t) "i4")))))
+                                                          k "=" (:^ t) "(" (string-join (map (@(i) (C-k i)) a) ",") ");}") (F-t b))))))
+                               ((string? t) (C k (str:: k "=" t ";") (if (char-alphabetic? (string-ref t 0)) (lookup e t) "i4")))))
+                   (unless (equal? (C-t a) (:3 i)) (nonsense! (:1 i) " says it returns a " (:3 i) " but it actually returns a " (C-t a)))
                    (str:: "\u29{" (C-t a) " " (C-k a) ";" (C-v a) "return " (C-k a) ";}\n"))))
         ((and (pair? i) (string=? (:^ i) "c_fn")) "")
         (else (nonsense! "Bad top-level expression")))) ast) "")) fout)
