@@ -81,8 +81,7 @@
 (display-to-file (str (file->string "pdl.h") (string-join (map (@(i)
   (cond ((and (pair? i) (string=? (:^ i) "fn"))
           (str (:3 i) " " (:1 i) "\u28"
-               (=: a (string-join (map (@(j) (str (:1 j) " " (:^ j))) (:2 i)) ",")
-                 (if (string=? a "") "void" a))
+               (if (null? (:2 i)) "void" (string-join (map (@(j) (str (:1 j) " " (:^ j))) (:2 i)) ","))
                (=: a (let gen ((k (uniq)) (t (:4 i)) (e (F-e (lookup fns (:1 i)))))
                        (cond ((pair? t) (if (string=? (:^ t) "?")
                                           (let* ((a (uniq)) (b (gen a (:1 t) e)) (c (gen k (:2 t) e)) (d (gen k (:3 t) e)))
