@@ -98,7 +98,7 @@
                                                        (nonsense! (:^ t) " parameter " (:^ j) " must be a " (:> j) " but you gave it a " (C-t i))))
                                              a (F-e b))
                                         (C k (str "{" (string-join (map (@(i) (str (C-t i) " " (C-k i) ";" (C-v i))) a) "")
-                                                  k "=" (:^ t) "(" (string-join (map (@(i) (C-k i)) a) ",") ");}") (F-t b))))))
+                                                  k "=" (:^ t) "(" (string-join (map C-k a) ",") ");}") (F-t b))))))
                          ((string? t) (C k (str k "=" t ";") (if (char-alphabetic? (string-ref t 0)) (lookup e t) "i4")))))
              (unless (equal? (C-t a) (:3 i)) (nonsense! (:1 i) " says it returns a " (:3 i) " but it actually returns a " (C-t a)))
              (str "\u29{" (C-t a) " " (C-k a) ";" (C-v a) "return " (C-k a) ";}\n"))))
