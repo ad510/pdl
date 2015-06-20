@@ -3,10 +3,9 @@
 (c_fn eq_i4 ((a i4) (b i4)) i4)
 (c_fn gt_i4 ((a i4) (b i4)) i4)
 (c_fn pn ((i i4)) i4)
-(fn a () i4 (pn 1))
-(fn b ((b1 i4) (b2 i4)) i4 (pn 2))
+(fn main () i4 (pn (fact 5)))
+(fn a ((b1 i4) (b2 i4)) i4 (pn 1))
 (fn fact ((n i4)) i4
   (? (eq_i4 n 0) 1
   (? (gt_i4 n 0) (mul_i4 n (fact (sub_i4 n 1)))
      -1)))
-(fn main () i4 (pn (fact 5)))
