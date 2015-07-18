@@ -1,11 +1,11 @@
-(c_fn sub_i4 ((a i4) (b i4)) i4)
-(c_fn mul_i4 ((a i4) (b i4)) i4)
-(c_fn eq_i4 ((a i4) (b i4)) i4)
-(c_fn gt_i4 ((a i4) (b i4)) i4)
-(c_fn pn ((i i4)) i4)
-(fn main () i4 (pn (fact 5)))
-(fn a ((b1 i4) (b2 i4)) i4 (pn 1))
-(fn fact ((n i4)) i4
-  (? (eq_i4 n 0) 1
-  (? (gt_i4 n 0) (mul_i4 n (fact (sub_i4 n 1)))
-     -1)))
+(sub (c_fn sub_int32_t (0 0) 0))
+(mul (c_fn mul_int32_t (0 0) 0))
+(eq (c_fn eq_int32_t (0 0) 0))
+(gt (c_fn gt_int32_t (0 0) 0))
+(pn (c_fn pn (0) 0))
+(main (@() (pn (fact 5))))
+(a (@((b1 0) (b2 0)) (pn 1)))
+(fact (@((n 0))
+  (? (eq n 0) 1
+  (? (gt n 0) (mul n (fact (sub n 1)))
+     -1))))
