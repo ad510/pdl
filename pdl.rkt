@@ -105,8 +105,9 @@
   (gen-t t))))
 (def (gen-f f) (str (gen-t (type (F-p f) (F-e f))) " " (F-k f) "("
                     (if (null? (:^ (F-p f))) "void" (string-join (map (@(i) (str (gen-t (type env (:> i))) " " (:^ i))) (:^ (F-p f))) ",")) ")"))
+(def out (str (file->string "pdl.h")
+  (string-join (map (@(i) (str (gen-f i) ";\n")) fns) "")
+  (string-join (map (@(i) (=: a (gen-e (uniq) (F-p i) (F-e i)) (str (gen-f i) "{" (C-t a) " " (C-k a) ";" (C-c a) "return " (C-k a) ";}\n"))) fns) "")))
 (def fout (str (:^ cmd) ".c"))
 (when (file-exists? fout) (delete-file fout))
-(display-to-file (str (file->string "pdl.h")
-  (string-join (map (@(i) (str (gen-f i) ";\n")) fns) "")
-  (string-join (map (@(i) (=: a (gen-e (uniq) (F-p i) (F-e i)) (str (gen-f i) "{" (C-t a) " " (C-k a) ";" (C-c a) "return " (C-k a) ";}\n"))) fns) "")) fout)
+(display-to-file out fout)
