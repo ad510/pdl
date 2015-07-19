@@ -12,11 +12,11 @@
 ; use custom destructuring macro b/c importing racket/match slows startup time
 (define-syntax-rule (mlet2 k1 k2 v b ...) (let ((t v)) (let ((k1 (:^ t)) (k2 (:1 t))) b ...)))
 
-(struct A (v t) #:transparent) ; atom (value S/I4/Op)
+(struct A (v t))               ; atom (value S/I4/Op)
 (struct CF (k p t))            ; c-fn (key param-types ret-type)
 (struct F (k (p #:mutable) e)) ; fn (c-key params expr)
-(struct G (f p) #:transparent) ; fn-call (fn args)
-(struct E (v (t #:mutable)) #:transparent) ; expr (value type)
+(struct G (f p))               ; fn-call (fn args)
+(struct E (v (t #:mutable)))   ; expr (value type)
 (def (T t) (E t t))
 (struct C (k c t))             ; c-code (key code type)
 
@@ -73,11 +73,11 @@
   ((F? v) "Anonymous function")
   ((G? v) (name (type v)))
   (else (error "Name fn doesn't recognize value (should never happen)")))))
-(def (expr p e) (if (and (A? (E-v e)) (eq? (A-t (E-v e)) 'S))
-  (=: s (A-v (E-v e)) (if p (or (dict-ref (:^ p) s #f) (expr (:> p) e)) (nonsense! "\"" s "\" not defined"))) e))
-(def (type p e) (or (E-t e) (=: e2 (expr p e) (set-E-t! e (or (E-t e2) (begin (set-E-t! e2 (=: g (E-v e2)
-  (unless (G? g) (error "Non-fn call node isn't typed (should never happen)"))
-  (=: f (type p (G-f g)) (if (and (A? f) (eq? (A-t f) 'Op) (eq? (A-v f) '?))
+(def (type p e) (or (E-t e) (=: g (E-v e) (set-E-t! e (cond
+  ((and (A? g) (eq? (A-t g) 'S)) (mlet2 p2 e2 (let expr ((p p) (e e))
+    (=: s (A-v (E-v e)) (unless p (nonsense! "\"" s "\" not defined"))
+    (=: e2 (dict-ref (:^ p) s #f) (if e2 (: p e2) (expr (:> p) e))))) (type p2 e2))) ; TODO: (type p2 e2) allows infinite recursion
+  ((G? g) (=: f (type p (G-f g)) (if (and (A? f) (eq? (A-t f) 'Op) (eq? (A-v f) '?))
     (if (= (length (G-p g)) 3) (=: a (type p (:1 (G-p g))) (=: b (type p (:2 (G-p g)))
                                a #|(if (equal? a b) a (nonsense! "Then types " (name a) " and " (name b) " don't match"))|#)) ; TODO: name won't work here
                              (nonsense! "? takes 3 arguments but you gave it " (number->string (length (G-p g)))))
@@ -88,7 +88,8 @@
         (nonsense! (name (G-f g)) " takes " (number->string (length fp)) " arguments but you gave it " (number->string (length (G-p g)))))
       ; in future, will need "is" to compare parameterized types
       ;(for ((i (G-p g)) (j fp) (n (in-range (length fp)))) (unless (equal? (type p i) (type env j)) (nonsense! "Parameter type mismatch")))
-      (type env ft)))))) (E-t e2)))) (E-t e))))
+      (type env ft)))))
+  (else (error "Non-fn call node isn't typed (should never happen)")))) (E-t e))))
 (def (gen-t t) (cond
   ((A? t) (case (A-t t) ((I4) "int32_t") (else (error "TODO: gen-t" (symbol->string (A-t t))))))
   (else (error "TODO"))))
