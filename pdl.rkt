@@ -20,6 +20,7 @@
 (def (T t) (E t t))
 (struct C (k c t))             ; c-code (key code type)
 
+(def (mapj f l (s "")) (string-join (map f l) s))
 (def (nonsense! . s) (displayln (string-join (:* "Nonsense! " s) "")) (exit 0))
 (def (whitespace? c) (or (char=? c #\space) (char=? c #\tab) (char=? c #\return) (char=? c #\newline)))
 (def cmd (command-line #:args args args))
@@ -100,16 +101,16 @@
       (let* ((a (uniq)) (b (gen-e a p (:^ (G-p v)))) (c (gen-e k p (:1 (G-p v)))) (d (gen-e k p (:2 (G-p v)))))
         (str "{" (C-t b) " " a ";" (C-c b) "if(" a ")" (C-c c) "else " (C-c d) "}"))
       (=: a (map (@(i) (gen-e (uniq) p i)) (G-p v))
-        (str "{" (string-join (map (@(i) (str (C-t i) " " (C-k i) ";" (C-c i))) a) "")
-             k "=" (cond ((CF? f) (CF-k f)) ((F? f) (F-k f))) "(" (string-join (map C-k a) ",") ");}")))))))
+        (str "{" (mapj (@(i) (str (C-t i) " " (C-k i) ";" (C-c i))) a)
+             k "=" (cond ((CF? f) (CF-k f)) ((F? f) (F-k f))) "(" (mapj C-k a ",") ");}")))))))
   (gen-t t))))
 (def (gen-f f) (str (gen-t (type (F-p f) (F-e f))) " " (F-k f) "("
-                    (if (null? (:^ (F-p f))) "void" (string-join (map (@(i) (str (gen-t (type env (:> i))) " " (:^ i))) (:^ (F-p f))) ",")) ")"))
+                    (if (null? (:^ (F-p f))) "void" (mapj (@(i) (str (gen-t (type env (:> i))) " " (:^ i))) (:^ (F-p f)) ",")) ")"))
 (def out (str (file->string "pdl.h")
-  (string-join (map (@(i) (str (gen-f i) ";\n")) fns) "")
-  (string-join (map (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (str (gen-t t) " " (:^ i) ";\n") ""))) (:^ env)) "")
-  "int main(void){" (string-join (map (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (C-c (gen-e (:^ i) env (:> i))) ""))) (:^ env)) "") "return 0;}\n"
-  (string-join (map (@(i) (=: a (gen-e (uniq) (F-p i) (F-e i)) (str (gen-f i) "{" (C-t a) " " (C-k a) ";" (C-c a) "return " (C-k a) ";}\n"))) fns) "")))
+  (mapj (@(i) (str (gen-f i) ";\n")) fns)
+  (mapj (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (str (gen-t t) " " (:^ i) ";\n") ""))) (:^ env))
+  "int main(void){" (mapj (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (C-c (gen-e (:^ i) env (:> i))) ""))) (:^ env)) "return 0;}\n"
+  (mapj (@(i) (=: a (gen-e (uniq) (F-p i) (F-e i)) (str (gen-f i) "{" (C-t a) " " (C-k a) ";" (C-c a) "return " (C-k a) ";}\n"))) fns)))
 (def fout (str (:^ cmd) ".c"))
 (when (file-exists? fout) (delete-file fout))
 (display-to-file out fout)
