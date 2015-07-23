@@ -107,6 +107,8 @@
                     (if (null? (:^ (F-p f))) "void" (string-join (map (@(i) (str (gen-t (type env (:> i))) " " (:^ i))) (:^ (F-p f))) ",")) ")"))
 (def out (str (file->string "pdl.h")
   (string-join (map (@(i) (str (gen-f i) ";\n")) fns) "")
+  (string-join (map (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (str (gen-t t) " " (:^ i) ";\n") ""))) (:^ env)) "")
+  "int main(void){" (string-join (map (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (C-c (gen-e (:^ i) env (:> i))) ""))) (:^ env)) "") "return 0;}\n"
   (string-join (map (@(i) (=: a (gen-e (uniq) (F-p i) (F-e i)) (str (gen-f i) "{" (C-t a) " " (C-k a) ";" (C-c a) "return " (C-k a) ";}\n"))) fns) "")))
 (def fout (str (:^ cmd) ".c"))
 (when (file-exists? fout) (delete-file fout))
