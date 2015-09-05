@@ -68,27 +68,31 @@
       (else (E (G (c2e (:^ c)) (map c2e (:> c))) #f))))
     (else (error "Bad token node (should never happen)")))))) ast)) #f))
 (for ((i fns)) (set-F-p! i (:* (F-p i) env)))
-(def (name e) (=: v (E-v e) (cond
-  ((A? v) (string (A-v v)))
+(def (name v) (cond
+  ((A? v) (A-v v))
   ((CF? v) (str "C function " (CF-k v)))
   ((F? v) "Anonymous function")
-  ((G? v) (name (type v)))
-  (else (error "Name fn doesn't recognize value (should never happen)")))))
+  ((G? v) "Function call")
+  (else (error "name fn doesn't recognize value (should never happen)"))))
+(def (is a b) (cond
+  ((A? a) (and (A? b) (eq? (A-t a) (A-t b)) (if (eq? (A-t a) 'Op) (eq? (A-v a) (A-v b)) #t)))
+  ((or (CF? a) (F? a)) (eq? a b))
+  (else (error "is fn doesn't recognize type (should never happen)"))))
 (def (type p e) (or (E-t e) (=: g (E-v e) (set-E-t! e (cond
   ((and (A? g) (eq? (A-t g) 'S)) (mlet2 p2 e2 (let expr ((p p) (e e))
     (=: s (A-v (E-v e)) (unless p (nonsense! "\"" s "\" not defined"))
     (=: e2 (dict-ref (:^ p) s #f) (if e2 (: p e2) (expr (:> p) e))))) (type p2 e2))) ; TODO: (type p2 e2) allows infinite recursion
   ((G? g) (=: f (type p (G-f g)) (if (and (A? f) (eq? (A-t f) 'Op) (eq? (A-v f) '?))
     (if (= (length (G-p g)) 3) (=: a (type p (:1 (G-p g))) (=: b (type p (:2 (G-p g)))
-                               a #|(if (equal? a b) a (nonsense! "Then types " (name a) " and " (name b) " don't match"))|#)) ; TODO: name won't work here
+                               (if (is a b) a (nonsense! "Then types " (name a) " and " (name b) " don't match"))))
                              (nonsense! "? takes 3 arguments but you gave it " (number->string (length (G-p g)))))
     (mlet2 fp ft (cond ((CF? f) (: (CF-p f) (CF-t f)))
                        ((F? f) (: (map :> (:^ (F-p f))) (F-e f)))
                        (else (nonsense! (name f) " is not a function")))
       (unless (= (length (G-p g)) (length fp))
-        (nonsense! (name (G-f g)) " takes " (number->string (length fp)) " arguments but you gave it " (number->string (length (G-p g)))))
-      ; in future, will need "is" to compare parameterized types
-      ;(for ((i (G-p g)) (j fp) (n (in-range (length fp)))) (unless (equal? (type p i) (type env j)) (nonsense! "Parameter type mismatch")))
+        (nonsense! (name f) " takes " (number->string (length fp)) " arguments but you gave it " (number->string (length (G-p g)))))
+      ; TODO: uncomment check below
+      ;(for ((i (G-p g)) (j fp) (n (in-range (length fp)))) (unless (is (type p i) (type env j)) (nonsense! "Parameter type mismatch")))
       (type env ft)))))
   (else (error "Non-fn call node isn't typed (should never happen)")))) (E-t e))))
 (def (gen-t t) (cond
