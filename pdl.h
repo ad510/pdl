@@ -16,4 +16,7 @@ PDL_NUM_OPS(int8_t)
 PDL_NUM_OPS(int16_t)
 PDL_NUM_OPS(int32_t)
 PDL_NUM_OPS(int64_t)
-int32_t pn(int32_t i){printf("%d\n", i);return i;}
+PDL_NUM_OPS(float)
+PDL_NUM_OPS(double)
+int32_t pn_int32_t(int32_t i){printf("%d\n",i);return i;}
+double pn_double(double f){printf("%f\n",f);return f;}

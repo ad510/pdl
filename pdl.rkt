@@ -12,7 +12,7 @@
 ; use custom destructuring macro b/c importing racket/match slows startup time
 (define-syntax-rule (mlet2 k1 k2 v b ...) (let ((t v)) (let ((k1 (:^ t)) (k2 (:1 t))) b ...)))
 
-(struct A (v t))               ; atom (value S/I4/Op)
+(struct A (v t))               ; atom (value S/I4/F8/Op)
 (struct CF (k p t))            ; c-fn (key param-types ret-type)
 (struct F (k (p #:mutable) e)) ; fn (c-key params expr)
 (struct G (f p))               ; fn-call (fn args)
@@ -61,7 +61,7 @@
 (def env (:* (:* (op "?") (map (@(i)
   (unless (and (pair? i) (= (length i) 2)) (nonsense! "Top-level expressions must be of form (key value)"))
   (:* (:^ i) (let c2e ((c (:1 i))) (cond
-    ((string? c) (if (string->number c) (T (A c 'I4)) (E (A c 'S) #f)))
+    ((string? c) (if (string->number c) (if (regexp-match? #rx"\\." c) (T (A c 'F8)) (T (A c 'I4))) (E (A c 'S) #f)))
     ((pair? c) (case (:^ c)
       (("c_fn") (=: f (CF (:1 c) (map c2e (:2 c)) (c2e (:3 c))) (set! c-fns (:* f c-fns)) (T f)))
       (("@") (=: f (F (uniq) (map (@(j) (:* (:^ j) (c2e (:1 j)))) (:1 c)) (c2e (:2 c))) (set! fns (:* f fns)) (T f)))
@@ -96,8 +96,7 @@
       (type env ft)))))
   (else (error "Non-fn call node isn't typed (should never happen)")))) (E-t e))))
 (def (gen-t t) (cond
-  ((A? t) (case (A-t t) ((I4) "int32_t") (else (error "TODO: gen-t" (symbol->string (A-t t))))))
-  (else (error "TODO"))))
+  ((A? t) (case (A-t t) ((I4) "int32_t") ((F8) "double")))))
 (def (gen-e k p e) (=: t (type p e) (C k
   (=: v (E-v e) (cond
     ((and (A? v) (not (eq? (A-t v) 'Op))) (str k "=" (A-v v) ";"))
@@ -112,8 +111,8 @@
                     (if (null? (:^ (F-p f))) "void" (mapj (@(i) (str (gen-t (type env (:> i))) " " (:^ i))) (:^ (F-p f)) ",")) ")"))
 (def out (str (file->string "pdl.h")
   (mapj (@(i) (str (gen-f i) ";\n")) fns)
-  (mapj (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (str (gen-t t) " " (:^ i) ";\n") ""))) (:^ env))
-  "int main(void){" (mapj (@(i) (=: t (type env (:> i)) (if (and (A? t) (eq? (A-t t) 'I4)) (C-c (gen-e (:^ i) env (:> i))) ""))) (:^ env)) "return 0;}\n"
+  (mapj (@(i) (=: t (gen-t (type env (:> i))) (if (void? t) "" (str t " " (:^ i) ";\n")))) (:^ env))
+  "int main(void){" (mapj (@(i) (if (void? (gen-t (type env (:> i)))) "" (C-c (gen-e (:^ i) env (:> i))))) (:^ env)) "return 0;}\n"
   (mapj (@(i) (=: a (gen-e (uniq) (F-p i) (F-e i)) (str (gen-f i) "{" (C-t a) " " (C-k a) ";" (C-c a) "return " (C-k a) ";}\n"))) fns)))
 (def fout (str (:^ cmd) ".c"))
 (when (file-exists? fout) (delete-file fout))

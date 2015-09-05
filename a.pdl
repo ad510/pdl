@@ -2,7 +2,7 @@
 (* (c_fn mul_int32_t (0 0) 0))
 (== (c_fn eq_int32_t (0 0) 0))
 (> (c_fn gt_int32_t (0 0) 0))
-(pn (c_fn pn (0) 0))
+(pn (c_fn pn_int32_t (0) 0))
 (fact5 (fact 5))
 (pn_fact5 (pn fact5))
 (a (@((b1 0) (b2 0)) (pn 1)))
